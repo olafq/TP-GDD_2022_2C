@@ -55,14 +55,12 @@ create table Es_Quiu_El.Medio_de_Pago_Venta(
 
 
 create table Es_Quiu_El.Producto_Tipo_Variante(
-	PRODUCTO_VARIANTE_CODIGO nvarchar(50) not null,
-	PRODUCTO_TIPO_VARIANTE nvarchar(50)
+	PRODUCTO_TIPO_VARIANTE nvarchar(50) not null
 );
 
 
 create table Es_Quiu_El.Variante(
-	PRODUCTO_VARIANTE_CODIGO nvarchar(50)not null, /* explicar porque se puso como FK Y NO PK como estaba antes*/
-	PRODUCTO_VARIANTE nvarchar(50)
+	PRODUCTO_VARIANTE nvarchar(50) not null
 );
 
 create table Es_Quiu_El.Canal_de_Venta(
@@ -109,9 +107,11 @@ create table Es_Quiu_El.Producto_Categoria(
 );
 
 
-create table Es_Quiu_El.Producto_Por_Variante(
+create  table Es_Quiu_El.Producto_Por_Variante(
+	PRODUCTO_VARIANTE_CODIGO nvarchar(50) not null,
 	PRODUCTO_CODIGO nvarchar(50) not null,
-	PRODUCTO_VARIANTE_CODIGO nvarchar(50)  not null,
+	PRODUCTO_TIPO_VARIANTE nvarchar(50) not null,
+	PRODUCTO_VARIANTE nvarchar(50)  not null,
 	PRECIO_UNITARIO_VENTA decimal(18,2) default null ,
 	PRECIO_UNITARIO_COMPRA decimal(18,2) default null
 );
@@ -195,7 +195,7 @@ alter table Es_Quiu_El.Medio_de_Pago_Venta
 add primary key(VENTA_MEDIO_PAGO_ID)
 
 alter table Es_Quiu_El.Producto_Tipo_Variante 
-add primary key(PRODUCTO_VARIANTE_CODIGO)
+add primary key(PRODUCTO_TIPO_VARIANTE)
 
 alter table Es_Quiu_El.Compra_Descuento 
 add primary key(DESCUENTO_COMPRA_CODIGO)
@@ -216,7 +216,10 @@ alter table Es_Quiu_El.Venta
 add constraint PK_VENTA_ENVIO_CODIGO primary key (VENTA_CODIGO)
 
 alter table Es_Quiu_El.Producto_Por_Variante 
-add constraint PK_Producto_por_variante_Codigo primary key (PRODUCTO_CODIGO,PRODUCTO_VARIANTE_CODIGO) 
+add constraint PK_Producto_por_variante_Codigo primary key (PRODUCTO_VARIANTE_CODIGO) 
+
+alter table Es_Quiu_El.Variante
+add primary key (PRODUCTO_VARIANTE)
 
 alter table Es_Quiu_El.Envio 
 add primary key (ENVIO_ID)
@@ -246,11 +249,11 @@ alter table Es_Quiu_El.Compra_Producto
 add constraint FK_Compra_Producto_Compra foreign key(COMPRA_NUMERO) references Es_Quiu_El.compra(COMPRA_NUMERO)
 
 alter table Es_Quiu_El.Compra_Producto 
-add constraint FK_Compra_Producto_Por_Variante foreign key(COMPRA_PRODUCTO_CODIGO,PRODUCTO_VARIANTE_CODIGO) references Es_Quiu_El.Producto_Por_Variante(PRODUCTO_CODIGO,PRODUCTO_VARIANTE_CODIGO)
- 
-alter table Es_Quiu_El.Variante 
-add constraint FK_PRODUCTO_TIPO_X_VARIANTE foreign key(PRODUCTO_VARIANTE_CODIGO) references Es_Quiu_El.Producto_Tipo_Variante(PRODUCTO_VARIANTE_CODIGO)
+add constraint FK_Compra_Producto_Por_Variante foreign key(PRODUCTO_VARIANTE_CODIGO) references Es_Quiu_El.Producto_Por_Variante(PRODUCTO_VARIANTE_CODIGO)
 
+alter table Es_Quiu_El.Compra_Producto 
+add constraint FK_Compra_Producto_Por_Tipo_Variante foreign key(COMPRA_PRODUCTO_CODIGO) references Es_Quiu_El.Producto(PRODUCTO_CODIGO)
+ 
 alter table Es_Quiu_El.Venta_Descuento
 add constraint FK_VENTA_DESCUENTO_VENTA foreign key(VENTA_CODIGO) references Es_Quiu_El.Venta(VENTA_CODIGO)
 
@@ -270,7 +273,10 @@ alter table Es_Quiu_El.Producto_Por_Variante
 add constraint FK_Producto_por_variante foreign key(PRODUCTO_CODIGO) references Es_Quiu_El.Producto(PRODUCTO_CODIGO)
 
 alter table Es_Quiu_El.Producto_Por_Variante 
-add constraint FK_Producto_por_variante_tipo_variante foreign key(PRODUCTO_VARIANTE_CODIGO) references Es_Quiu_El.Producto_Tipo_Variante(PRODUCTO_VARIANTE_CODIGO)
+add constraint FK_Variante_Producto_por_variante foreign key(PRODUCTO_VARIANTE) references Es_Quiu_El.Variante(PRODUCTO_VARIANTE)
+
+alter table Es_Quiu_El.Producto_Por_Variante 
+add constraint FK_Variante_Tipo_Producto_por_variante foreign key(PRODUCTO_TIPO_VARIANTE) references Es_Quiu_El.Producto_tipo_variante(PRODUCTO_TIPO_VARIANTE)
 
 alter table Es_Quiu_El.Venta 
 add constraint FK_VENTA_CLIENTE foreign key(VENTA_CLIENTE_CODIGO) references Es_Quiu_El.Cliente(CLIENTE_CODIGO)
@@ -285,7 +291,10 @@ alter table Es_Quiu_El.Venta
 add constraint FK_VENTA_ENVIO foreign key(VENTA_ENVIO_CODIGO) references Es_Quiu_El.Envio(ENVIO_ID)
 
 alter table Es_Quiu_El.Venta_Producto
-add constraint FK_Venta_Producto_Por_Variante foreign key(VENTA_PRODUCTO_CODIGO,PRODUCTO_VARIANTE_CODIGO) references Es_Quiu_El.Producto_Por_Variante(PRODUCTO_CODIGO,PRODUCTO_VARIANTE_CODIGO)
+add constraint FK_Venta_Producto_Por_Variante foreign key(PRODUCTO_VARIANTE_CODIGO) references Es_Quiu_El.Producto_Por_Variante(PRODUCTO_VARIANTE_CODIGO)
+
+alter table Es_Quiu_El.Venta_Producto
+add constraint FK_Venta_Producto_Por_venta foreign key(VENTA_PRODUCTO_CODIGO) references Es_Quiu_El.Producto(PRODUCTO_CODIGO)
 
 alter table Es_Quiu_El.Venta_Producto 
 add constraint FK_Venta_Producto_Venta foreign key(VENTA_CODIGO) references Es_Quiu_El.Venta(VENTA_CODIGO)
@@ -396,8 +405,8 @@ as
 begin
 insert into Es_Quiu_El.Producto_Tipo_Variante
 
-select distinct PRODUCTO_VARIANTE_CODIGO, PRODUCTO_TIPO_VARIANTE from gd_esquema.Maestra
-where PRODUCTO_VARIANTE_CODIGO is not null and PRODUCTO_TIPO_VARIANTE is not null
+select distinct  PRODUCTO_TIPO_VARIANTE from gd_esquema.Maestra
+where  PRODUCTO_TIPO_VARIANTE is not null
 
 end
 go
@@ -411,9 +420,9 @@ as
 begin
 insert into Es_Quiu_El.Variante
 
-select distinct Es_Quiu_El.Producto_Tipo_Variante.PRODUCTO_VARIANTE_CODIGO, maestra.PRODUCTO_VARIANTE from gd_esquema.Maestra
-left join Es_Quiu_El.Producto_Tipo_Variante on Es_Quiu_El.Producto_Tipo_Variante.PRODUCTO_VARIANTE_CODIGO = maestra.PRODUCTO_VARIANTE_CODIGO
-where Es_Quiu_El.Producto_Tipo_Variante.PRODUCTO_VARIANTE_CODIGO is not null
+select  distinct  maestra.PRODUCTO_VARIANTE from gd_esquema.Maestra
+where maestra.PRODUCTO_VARIANTE is not null
+
 
 end
 go
@@ -505,27 +514,31 @@ as
 begin
 insert into Es_Quiu_El.Producto_Por_Variante
 
-select distinct Es_Quiu_El.Producto.PRODUCTO_CODIGO, Es_Quiu_El.Producto_Tipo_Variante.PRODUCTO_VARIANTE_CODIGO, null, null from gd_esquema.Maestra
-join Es_Quiu_El.Producto on Es_Quiu_El.Producto.PRODUCTO_CODIGO = Maestra.PRODUCTO_CODIGO
-join Es_Quiu_El.Producto_Tipo_Variante on Es_Quiu_El.Producto_Tipo_Variante.PRODUCTO_VARIANTE_CODIGO = Maestra.PRODUCTO_VARIANTE_CODIGO
+select distinct M.PRODUCTO_VARIANTE_CODIGO, P.PRODUCTO_CODIGO, TV.PRODUCTO_TIPO_VARIANTE,V.PRODUCTO_VARIANTE, null, null from gd_esquema.Maestra M
+join Es_Quiu_El.Producto  P on P.PRODUCTO_CODIGO = M.PRODUCTO_CODIGO
+join Es_Quiu_El.Producto_Tipo_Variante TV on TV.PRODUCTO_TIPO_VARIANTE = M.PRODUCTO_TIPO_VARIANTE
+join Es_Quiu_El.Variante V on V.PRODUCTO_VARIANTE = M.PRODUCTO_VARIANTE
+
 
 end
 go
 
 
 
---Stored procedure para Venta_Producto
+--Stored procedure para compra_Producto
 
 create procedure Es_Quiu_El.Migrar_Compra_Producto 
 as 
 begin
-insert into Es_Quiu_El.Compra_Producto
+insert into  select * from Es_Quiu_El.Compra_Producto
 
-select distinct Es_Quiu_El.Producto_Por_Variante.PRODUCTO_CODIGO, Es_Quiu_El.Producto_Por_Variante.PRODUCTO_VARIANTE_CODIGO, Es_Quiu_El.Compra.COMPRA_NUMERO,
-COMPRA_PRODUCTO_CANTIDAD, COMPRA_PRODUCTO_PRECIO from gd_esquema.Maestra 
-join Es_Quiu_El.Producto_Por_Variante on Es_Quiu_El.Producto_Por_Variante.PRODUCTO_CODIGO = Maestra.PRODUCTO_CODIGO and Es_Quiu_El.Producto_Por_Variante.PRODUCTO_VARIANTE_CODIGO = Maestra.PRODUCTO_VARIANTE_CODIGO 
-join Es_Quiu_El.Compra on Es_Quiu_El.Compra.COMPRA_NUMERO = Maestra.COMPRA_NUMERO
-where Es_Quiu_El.Producto_Por_Variante.PRODUCTO_CODIGO is not null and Es_Quiu_El.Compra.COMPRA_NUMERO is not null
+select distinct P.PRODUCTO_CODIGO,PV.PRODUCTO_VARIANTE_CODIGO, C.COMPRA_NUMERO,
+sum(M.COMPRA_PRODUCTO_CANTIDAD) COMPRA_PRODUCTO_CANTIDAD, M.COMPRA_PRODUCTO_PRECIO from gd_esquema.Maestra M
+join Es_Quiu_El.Producto_Por_Variante PV on PV.PRODUCTO_VARIANTE_CODIGO = M.PRODUCTO_VARIANTE_CODIGO 
+join Es_Quiu_El.Compra C on C.COMPRA_NUMERO = M.COMPRA_NUMERO
+join Es_Quiu_El.Producto P on P.PRODUCTO_CODIGO = M.PRODUCTO_CODIGO
+where PV.PRODUCTO_VARIANTE_CODIGO is not null and C.COMPRA_NUMERO is not null
+group by P.PRODUCTO_CODIGO,PV.PRODUCTO_VARIANTE_CODIGO, C.COMPRA_NUMERO,M.COMPRA_PRODUCTO_PRECIO
 
 
 end
@@ -599,12 +612,14 @@ create procedure Es_Quiu_El.Migrar_Venta_Producto
 as 
 begin
 insert into Es_Quiu_El.Venta_Producto
-select distinct  Es_Quiu_El.Producto_Por_Variante.PRODUCTO_CODIGO,Es_Quiu_El.Venta.VENTA_CODIGO, Es_Quiu_El.Producto_Por_Variante.PRODUCTO_VARIANTE_CODIGO, 
-VENTA_PRODUCTO_CANTIDAD, VENTA_PRODUCTO_PRECIO from gd_esquema.Maestra 
+select distinct  P.PRODUCTO_CODIGO,V.VENTA_CODIGO, PV.PRODUCTO_VARIANTE_CODIGO, 
+sum(M.VENTA_PRODUCTO_CANTIDAD), M.VENTA_PRODUCTO_PRECIO from gd_esquema.Maestra  M
 
-join Es_Quiu_El.Producto_Por_Variante on Es_Quiu_El.Producto_Por_Variante.PRODUCTO_CODIGO = Maestra.PRODUCTO_CODIGO and Es_Quiu_El.Producto_Por_Variante.PRODUCTO_VARIANTE_CODIGO = Maestra.PRODUCTO_VARIANTE_CODIGO 
-join Es_Quiu_El.Venta on Es_Quiu_El.Venta.VENTA_CODIGO = Maestra.VENTA_CODIGO
-where Es_Quiu_El.Producto_Por_Variante.PRODUCTO_CODIGO is not null and Es_Quiu_El.Venta.VENTA_CODIGO is not null
+join Es_Quiu_El.Venta V on V.VENTA_CODIGO = M.VENTA_CODIGO
+join Es_Quiu_El.Producto_Por_Variante PV on PV.PRODUCTO_VARIANTE_CODIGO = M.PRODUCTO_VARIANTE_CODIGO 
+join Es_Quiu_El.Producto P on P.PRODUCTO_CODIGO = M.PRODUCTO_CODIGO
+where PV.PRODUCTO_CODIGO is not null and V.VENTA_CODIGO is not null and PV.PRODUCTO_VARIANTE_CODIGO is not null
+group by  P.PRODUCTO_CODIGO,V.VENTA_CODIGO, PV.PRODUCTO_VARIANTE_CODIGO, M.VENTA_PRODUCTO_PRECIO
 
 end
 go
