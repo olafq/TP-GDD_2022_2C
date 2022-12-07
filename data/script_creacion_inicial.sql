@@ -1,4 +1,3 @@
-
 ---------------------------------------------------------------------------------------------------------
 ------------------------------------- Creacion de stored procedures ------------------------------------
 ---------------------------------------------------------------------------------------------------------
@@ -77,14 +76,12 @@ create table Es_Quiu_El.Venta_Descuento(
 
 create table Es_Quiu_El.Venta_Por_Cupon(
 	VENTA_CODIGO decimal(19,0),
-	VENTA_CUPON_CODIGO int,
+	VENTA_CUPON_CODIGO nvarchar(255),
 	Venta_CUPON_Total decimal(18,2)
 );
 
 create table Es_Quiu_El.Cupon(
-	VENTA_CUPON_CODIGO_ID int identity(1,1) not null,
 	VENTA_CUPON_CODIGO nvarchar(255) not null,
-	VENTA_CUPON_IMPORTE decimal(18,2),
 	VENTA_CUPON_FECHA_DESDE date,
 	VENTA_CUPON_FECHA_HASTA date,
 	VENTA_CUPON_VALOR decimal(18,2),
@@ -204,7 +201,7 @@ alter table Es_Quiu_El.Canal_de_Venta
 add primary key (CANAL_ID)
 
 alter table Es_Quiu_El.Cupon 
-add primary key (VENTA_CUPON_CODIGO_ID)
+add primary key (VENTA_CUPON_CODIGO)
 
 alter table Es_Quiu_El.Proveedor  
 add primary key (PROVEEDOR_CUIT)
@@ -264,7 +261,7 @@ alter table Es_Quiu_El.Venta_Por_Cupon
 add constraint FK_Venta_Por_Cupon_X_Cupon foreign key(VENTA_CODIGO) references Es_Quiu_El.Venta(VENTA_CODIGO)
 
 alter table Es_Quiu_El.Venta_Por_Cupon
-add constraint FK_Venta_Por_Cupon foreign key(VENTA_CUPON_CODIGO) references Es_Quiu_El.Cupon(VENTA_CUPON_CODIGO_ID)
+add constraint FK_Venta_Por_Cupon foreign key(VENTA_CUPON_CODIGO) references Es_Quiu_El.Cupon(VENTA_CUPON_CODIGO)
 
 alter table Es_Quiu_El.Proveedor 
 add constraint FK_Proveedor_ZONA foreign key(PROVEEDOR_CP,PROVEEDOR_LOCALIDAD) references Es_Quiu_El.ZONA(CODIGO_POSTAL,LOCALIDAD)
@@ -530,7 +527,7 @@ go
 create procedure Es_Quiu_El.Migrar_Compra_Producto 
 as 
 begin
-insert into  select * from Es_Quiu_El.Compra_Producto
+insert into  Es_Quiu_El.Compra_Producto
 
 select distinct P.PRODUCTO_CODIGO,PV.PRODUCTO_VARIANTE_CODIGO, C.COMPRA_NUMERO,
 sum(M.COMPRA_PRODUCTO_CANTIDAD) COMPRA_PRODUCTO_CANTIDAD, M.COMPRA_PRODUCTO_PRECIO from gd_esquema.Maestra M
@@ -551,11 +548,12 @@ go
 create procedure Es_Quiu_El.Migrar_Cupones
 as 
 begin
-insert into Es_Quiu_El.Cupon
+insert into  Es_Quiu_El.Cupon
 
-select distinct VENTA_CUPON_CODIGO, VENTA_CUPON_IMPORTE, VENTA_CUPON_FECHA_DESDE, VENTA_CUPON_FECHA_HASTA, VENTA_CUPON_VALOR,
+select distinct VENTA_CUPON_CODIGO, VENTA_CUPON_FECHA_DESDE, VENTA_CUPON_FECHA_HASTA, VENTA_CUPON_VALOR,
 VENTA_CUPON_TIPO from gd_esquema.Maestra
 where VENTA_CUPON_CODIGO is not null 
+
 
 end
 go
@@ -612,9 +610,9 @@ create procedure Es_Quiu_El.Migrar_Venta_Producto
 as 
 begin
 insert into Es_Quiu_El.Venta_Producto
+
 select distinct  P.PRODUCTO_CODIGO,V.VENTA_CODIGO, PV.PRODUCTO_VARIANTE_CODIGO, 
 sum(M.VENTA_PRODUCTO_CANTIDAD), M.VENTA_PRODUCTO_PRECIO from gd_esquema.Maestra  M
-
 join Es_Quiu_El.Venta V on V.VENTA_CODIGO = M.VENTA_CODIGO
 join Es_Quiu_El.Producto_Por_Variante PV on PV.PRODUCTO_VARIANTE_CODIGO = M.PRODUCTO_VARIANTE_CODIGO 
 join Es_Quiu_El.Producto P on P.PRODUCTO_CODIGO = M.PRODUCTO_CODIGO
@@ -633,6 +631,7 @@ create procedure Es_Quiu_El.Migrar_Venta_Descuento
 as 
 begin
 insert into Es_Quiu_El.Venta_Descuento
+
 select distinct Es_Quiu_El.Venta.VENTA_CODIGO, Es_Quiu_El.Medio_de_Pago_Venta.VENTA_MEDIO_PAGO_ID, VENTA_DESCUENTO_CONCEPTO, VENTA_DESCUENTO_IMPORTE  from gd_esquema.Maestra
 join Es_Quiu_El.Venta on Es_Quiu_El.Venta.VENTA_CODIGO = Maestra.VENTA_CODIGO
 join Es_Quiu_El.Medio_de_Pago_Venta on Es_Quiu_El.Medio_de_Pago_Venta.VENTA_MEDIO_PAGO = maestra.VENTA_MEDIO_PAGO
@@ -649,10 +648,9 @@ as
 begin
 insert into Es_Quiu_El.Venta_Por_Cupon
 
-select distinct  Es_Quiu_El.Venta.VENTA_CODIGO, count(Es_Quiu_El.Cupon.VENTA_CUPON_CODIGO_ID), sum(Es_Quiu_El.Cupon.VENTA_CUPON_VALOR) from gd_esquema.Maestra
-join Es_Quiu_El.Venta on Es_Quiu_El.Venta.VENTA_CODIGO = Maestra.VENTA_CODIGO 
-join Es_Quiu_El.Cupon on Es_Quiu_El.Cupon.VENTA_CUPON_CODIGO = maestra.VENTA_CUPON_CODIGO and Es_Quiu_El.Cupon.VENTA_CUPON_VALOR = maestra.VENTA_CUPON_VALOR 
-group by Es_Quiu_El.Venta.VENTA_CODIGO
+select   distinct V.VENTA_CODIGO, C.VENTA_CUPON_CODIGO, M.VENTA_CUPON_IMPORTE from gd_esquema.Maestra M
+join Es_Quiu_El.Venta V on V.VENTA_CODIGO = M.VENTA_CODIGO 
+join Es_Quiu_El.Cupon C on C.VENTA_CUPON_CODIGO = M.VENTA_CUPON_CODIGO 
 
 
 end
