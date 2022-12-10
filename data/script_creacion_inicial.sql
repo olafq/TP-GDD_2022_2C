@@ -1,3 +1,4 @@
+
 ---------------------------------------------------------------------------------------------------------
 ------------------------------------- Creacion de stored procedures ------------------------------------
 ---------------------------------------------------------------------------------------------------------
@@ -59,7 +60,8 @@ create table Es_Quiu_El.Producto_Tipo_Variante(
 
 
 create table Es_Quiu_El.Variante(
-	PRODUCTO_VARIANTE nvarchar(50) not null
+	PRODUCTO_VARIANTE nvarchar(50) not null,
+	PRODUCTO_TIPO_VARIANTE nvarchar(50) not null
 );
 
 create table Es_Quiu_El.Canal_de_Venta(
@@ -216,7 +218,7 @@ alter table Es_Quiu_El.Producto_Por_Variante
 add constraint PK_Producto_por_variante_Codigo primary key (PRODUCTO_VARIANTE_CODIGO) 
 
 alter table Es_Quiu_El.Variante
-add primary key (PRODUCTO_VARIANTE)
+add constraint PK_VARIANTE_TIPO primary key (PRODUCTO_VARIANTE,PRODUCTO_TIPO_VARIANTE)
 
 alter table Es_Quiu_El.Envio 
 add primary key (ENVIO_ID)
@@ -232,6 +234,8 @@ add constraint PK_Zona primary key(CODIGO_POSTAL,LOCALIDAD)
 
 
 --FOREING KEYS
+alter table Es_Quiu_El.Variante
+add constraint FK_VARIANTE_TIPO foreign key(Producto_tipo_variante)references Es_Quiu_El.Producto_Tipo_Variante(Producto_tipo_variante)
 
 alter table Es_Quiu_El.Compra 
 add constraint FK_COMPRA_PROVEEDOR foreign key(COMPRA_PROVEEDOR) references Es_Quiu_El.Proveedor(PROVEEDOR_CUIT)
@@ -270,10 +274,7 @@ alter table Es_Quiu_El.Producto_Por_Variante
 add constraint FK_Producto_por_variante foreign key(PRODUCTO_CODIGO) references Es_Quiu_El.Producto(PRODUCTO_CODIGO)
 
 alter table Es_Quiu_El.Producto_Por_Variante 
-add constraint FK_Variante_Producto_por_variante foreign key(PRODUCTO_VARIANTE) references Es_Quiu_El.Variante(PRODUCTO_VARIANTE)
-
-alter table Es_Quiu_El.Producto_Por_Variante 
-add constraint FK_Variante_Tipo_Producto_por_variante foreign key(PRODUCTO_TIPO_VARIANTE) references Es_Quiu_El.Producto_tipo_variante(PRODUCTO_TIPO_VARIANTE)
+add constraint FK_Variante_Productoo_por_variante foreign key(PRODUCTO_VARIANTE,PRODUCTO_TIPO_VARIANTE) references Es_Quiu_El.Variante(PRODUCTO_VARIANTE,PRODUCTO_TIPO_VARIANTE)
 
 alter table Es_Quiu_El.Venta 
 add constraint FK_VENTA_CLIENTE foreign key(VENTA_CLIENTE_CODIGO) references Es_Quiu_El.Cliente(CLIENTE_CODIGO)
@@ -417,8 +418,9 @@ as
 begin
 insert into Es_Quiu_El.Variante
 
-select  distinct  maestra.PRODUCTO_VARIANTE from gd_esquema.Maestra
-where maestra.PRODUCTO_VARIANTE is not null
+select  distinct  M.PRODUCTO_VARIANTE, V.PRODUCTO_TIPO_VARIANTE from gd_esquema.Maestra M
+join Es_Quiu_El.Producto_Tipo_Variante V ON  M.PRODUCTO_TIPO_VARIANTE = V.PRODUCTO_TIPO_VARIANTE
+where M.PRODUCTO_VARIANTE is not null
 
 
 end
@@ -511,10 +513,9 @@ as
 begin
 insert into Es_Quiu_El.Producto_Por_Variante
 
-select distinct M.PRODUCTO_VARIANTE_CODIGO, P.PRODUCTO_CODIGO, TV.PRODUCTO_TIPO_VARIANTE,V.PRODUCTO_VARIANTE, null, null from gd_esquema.Maestra M
+select distinct M.PRODUCTO_VARIANTE_CODIGO, P.PRODUCTO_CODIGO, V.PRODUCTO_TIPO_VARIANTE,V.PRODUCTO_VARIANTE, null, null from gd_esquema.Maestra M
 join Es_Quiu_El.Producto  P on P.PRODUCTO_CODIGO = M.PRODUCTO_CODIGO
-join Es_Quiu_El.Producto_Tipo_Variante TV on TV.PRODUCTO_TIPO_VARIANTE = M.PRODUCTO_TIPO_VARIANTE
-join Es_Quiu_El.Variante V on V.PRODUCTO_VARIANTE = M.PRODUCTO_VARIANTE
+join Es_Quiu_El.Variante V on V.PRODUCTO_VARIANTE = M.PRODUCTO_VARIANTE and V.PRODUCTO_TIPO_VARIANTE = M.PRODUCTO_TIPO_VARIANTE
 
 
 end
