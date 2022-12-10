@@ -3,4 +3,4 @@
 # **Nombre y Legajo de integrantes:**
   * ***Olaf Querol 173370-9***
   * ***Matias Agustin Fenandez 173145-2***
-# **Email del responsable del grupo:matiafernandez@frba.utn.edu.ar**
+# **Email del responsable del grupo:oquerol@frba.utn.edu.ar**
