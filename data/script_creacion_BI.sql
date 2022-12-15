@@ -6,13 +6,37 @@
 create schema BI_Es_Quiu_El;
 go 
 
+-- FUNCION QUE DEVUELVE RANGO ETARIO 
+CREATE FUNCTION BI_ES_Quiu_El.RANGO_EDAD(@edad int) 
+RETURNS nvarchar(255)
+AS
+BEGIN
+	DECLARE @rango nvarchar(255);
+	DECLARE @hoy DATE;
+	SET @hoy = GETDATE();
+
+	IF @edad < 25
+		SET @rango = '< 25 aÃ±os'
+	ELSE IF @edad BETWEEN 25 AND 35
+		SET @rango = '25 - 35 aÃ±os'
+	ELSE IF @edad BETWEEN 36 AND 55
+		SET @rango  = '35 - 55 aÃ±os'
+	ELSE
+		SET @rango = '> 55 aÃ±os'
+
+
+	RETURN @rango;
+
+END
+GO
 
 --Stored procedure que crea las tablas de nuestro modelo
 
 create procedure BI_Es_Quiu_El.Crear_Tablas
 as
 begin 
-create table BI_Es_Quiu_El.Hechos_Ventas_y_Compras(
+
+create table  BI_Es_Quiu_El.Hechos_Ventas(
 	Producto_Codigo  nvarchar(50),
 	Canal_id nvarchar(255),
 	ID_Tiempo int,
@@ -20,25 +44,38 @@ create table BI_Es_Quiu_El.Hechos_Ventas_y_Compras(
 	ID_Producto_Categoria int,
 	ID_Provincia int,
 	ID_Medio_de_Pago int,
-	ID_Descuento int,
-	Cliente_Codigo int,
+	Rango_Etario nvarchar(255),
+	unidades decimal(18,2),
+	precio decimal(18,2)
+);
+
+create  table  BI_Es_Quiu_El.Hechos_Compras(
+	Producto_Codigo  nvarchar(50),
+	ID_Tiempo int,
+	ID_Producto_Categoria int,
+	ID_Provincia int,
+	ID_Medio_de_Pago int,
 	proveedor_cuit nvarchar(50),
 	unidades decimal(18,2),
 	precio decimal(18,2)
 );
 
-create table BI_Es_Quiu_El.Dimension_Cliente(
-	CLINETE_CODIGO int not null,
-	CLIENTE_DNI decimal(18,0),
-	CLIENTE_NOMBRE nvarchar(255),
-	CLIENTE_APELLIDO nvarchar(255),
-	CLIENTE_TELEFONO decimal(18,0),
-	ClIENTE_MAIL nvarchar(255),
-	CLIENTE_FECHA_NAC date,
-	CLIENTE_EDAD int,
-	CLIENTE_DIRECCION nvarchar(255),
-	CLIENTE_CP decimal (18,0),
-	CLIENTE_LOCALIDAD nvarchar(255),
+CREATE TABLE BI_Es_Quiu_El.Hechos_descuentos (
+	id_tiempo int,
+	id_medio_de_pago int,
+	id_canal_de_venta nvarchar(255),
+	id_tipo_de_descuento int,
+	descuento decimal(18,2)
+);
+
+create table BI_Es_Quiu_El.Dimension_Tipo_Descuento(
+	Descuento_id int identity(1,1) not null,
+	Descuento_Concepto nvarchar(255)
+);
+
+create table BI_Es_Quiu_El.Dimension_Edad(
+	Rango_Etario nvarchar(255) not null,
+	Cantidad decimal(18,0)
 );
 
 create table BI_ES_Quiu_El.Dimension_Proveedor(
@@ -57,12 +94,6 @@ create table BI_Es_Quiu_El.Dimension_Tipo_De_Envio(
 	Tiempo_Envio decimal(18,2)
 );
 
-create table BI_Es_Quiu_El.Dimension_Tipo_Descuento(
-	Descuento_id int identity(1,1)not null,
-	Descuento_Codigo int not null,
-	Descuento_Importe decimal(18,2),
-	Descuento_Concepto nvarchar(255)
-);
 
 create table BI_Es_Quiu_El.Dimension_Medio_de_Pago(
 	ID_Medio_de_pago int  not null,
@@ -107,6 +138,9 @@ Create table BI_ES_Quiu_El.Dimension_Producto(
 alter table BI_ES_Quiu_El.Dimension_Canal_De_Ventas
 add primary key (ID_Canal)
 
+alter table BI_Es_Quiu_El.Dimension_Tipo_Descuento 
+add primary key(descuento_id)
+
 alter table BI_ES_Quiu_El.Dimension_Producto
 add primary key (PRODUCTO_CODIGO)
 
@@ -122,69 +156,79 @@ add primary key (ID_Tiempo)
 alter table BI_ES_Quiu_El.Dimension_Medio_de_Pago
 add primary key (ID_Medio_de_pago)
 
-alter table BI_Es_Quiu_El.Dimension_Tipo_Descuento
-add primary key (Descuento_id)
-
 alter table BI_Es_Quiu_El.Dimension_Tipo_De_Envio
 add primary key (ID_ENVIO)
 
-alter table BI_Es_Quiu_El.Dimension_Cliente
-add primary key (CLINETE_CODIGO)
+alter table BI_Es_Quiu_El.Dimension_Edad
+add primary key(Rango_Etario)
 
 alter table BI_ES_Quiu_El.Dimension_Proveedor
 add primary key (proveedor_cuit)
 
 
---FOREING KEYS
+--FOREING KEYS PARA TABLA DE HECHOS VENTAS
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_PRODUCTO foreign key(Producto_Codigo) references BI_ES_Quiu_El.Dimension_Producto(PRODUCTO_CODIGO)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_PRODUCTO foreign key(Producto_Codigo) references BI_ES_Quiu_El.Dimension_Producto(PRODUCTO_CODIGO)
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_CANAL foreign key(Canal_id) references BI_ES_Quiu_El.Dimension_Canal_De_Ventas(ID_CANAL)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_CANAL foreign key(Canal_id) references BI_ES_Quiu_El.Dimension_Canal_De_Ventas(ID_CANAL)
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_PROVINCIA foreign key(ID_Provincia) references BI_ES_Quiu_El.Dimension_Provincia(ID_Provincia)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_PROVINCIA foreign key(ID_Provincia) references BI_ES_Quiu_El.Dimension_Provincia(ID_Provincia)
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_TIEMPO foreign key(ID_Tiempo) references BI_Es_Quiu_El.Dimension_Tiempo(ID_Tiempo)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_TIEMPO foreign key(ID_Tiempo) references BI_Es_Quiu_El.Dimension_Tiempo(ID_Tiempo)
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_ENVIO foreign key(ID_Envio) references BI_Es_Quiu_El.Dimension_Tipo_De_Envio(ID_Envio)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_ENVIO foreign key(ID_Envio) references BI_Es_Quiu_El.Dimension_Tipo_De_Envio(ID_Envio)
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_PRODUCTO_CATEGORIA foreign key(ID_Producto_Categoria) references BI_ES_Quiu_El.Dimension_Categoria_Producto(ID_Producto_Categoria)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_PRODUCTO_CATEGORIA foreign key(ID_Producto_Categoria) references BI_ES_Quiu_El.Dimension_Categoria_Producto(ID_Producto_Categoria)
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_MEDIO_DE_PAGO foreign key(ID_Medio_de_Pago) references BI_Es_Quiu_El.Dimension_Medio_de_Pago(ID_Medio_de_pago)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_MEDIO_DE_PAGO foreign key(ID_Medio_de_Pago) references BI_Es_Quiu_El.Dimension_Medio_de_Pago(ID_Medio_de_pago)
 
-alter table BI_Es_Quiu_El.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_CLIENTE_CODIGO foreign key(Cliente_Codigo) references BI_Es_Quiu_El.Dimension_Cliente(CLINETE_CODIGO)
+alter table BI_Es_Quiu_El.Hechos_Ventas
+add constraint FK_HECHOS_VENTAS_EDAD foreign key(Rango_Etario) references BI_Es_Quiu_El.Dimension_Edad(Rango_Etario)
 
-alter table BI_Es_quiu_el.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_PROVEEDOR foreign key(proveedor_cuit) references BI_Es_Quiu_El.Dimension_Proveedor(proveedor_cuit)
+--FOREING KEYS PARA TABLA DE HECHOS COMPRAS
 
-alter table BI_Es_quiu_el.Hechos_Ventas_y_Compras
-add constraint FK_HECHOS_VENTAS_Y_COMPRAS_DESCUENTOS foreign key(id_descuento) references BI_Es_Quiu_El.Dimension_Tipo_Descuento(descuento_id)
+alter table BI_Es_Quiu_El.Hechos_Compras
+add constraint FK_HECHOS_COMPRAS_PRODUCTO foreign key(Producto_Codigo) references BI_ES_Quiu_El.Dimension_Producto(PRODUCTO_CODIGO)
+
+alter table BI_Es_Quiu_El.Hechos_Compras
+add constraint FK_HECHOS_COMPRAS_PROVINCIA foreign key(ID_Provincia) references BI_ES_Quiu_El.Dimension_Provincia(ID_Provincia)
+
+alter table BI_Es_Quiu_El.Hechos_Compras
+add constraint FK_HECHOS_COMPRAS_TIEMPO foreign key(ID_Tiempo) references BI_Es_Quiu_El.Dimension_Tiempo(ID_Tiempo)
+
+alter table BI_Es_Quiu_El.Hechos_Compras
+add constraint FK_HECHOS_COMPRAS_PRODUCTO_CATEGORIA foreign key(ID_Producto_Categoria) references BI_ES_Quiu_El.Dimension_Categoria_Producto(ID_Producto_Categoria)
+
+alter table BI_Es_Quiu_El.Hechos_Compras
+add constraint FK_HECHOS_COMPRAS_MEDIO_DE_PAGO foreign key(ID_Medio_de_Pago) references BI_Es_Quiu_El.Dimension_Medio_de_Pago(ID_Medio_de_pago)
+
+alter table BI_Es_Quiu_El.Hechos_Compras
+add constraint FK_HECHOS_COMPRAS_Proveedor foreign key(proveedor_cuit) references BI_Es_Quiu_El.Dimension_Proveedor(proveedor_cuit)
+
+
+--FOREING KEYS PARA TABLA DE HECHOS DESCUENTOS
+alter table BI_Es_Quiu_El.Hechos_Descuentos
+add constraint FK_HECHOS_DESCUENTOS_TIEMPO foreign key(ID_Tiempo) references BI_Es_Quiu_El.Dimension_Tiempo(ID_Tiempo)
+
+alter table BI_Es_Quiu_El.Hechos_Descuentos
+add constraint FK_HECHOS_DESCUENTOS_MEDIO_DE_PAGO foreign key(ID_Medio_de_Pago) references BI_Es_Quiu_El.Dimension_Medio_de_Pago(ID_Medio_de_pago)
+	
+alter table BI_Es_Quiu_El.Hechos_Descuentos
+add constraint FK_HECHOS_DESCUNETOS_CANAL foreign key(id_canal_de_venta) references BI_ES_Quiu_El.Dimension_Canal_De_Ventas(ID_CANAL)
+
+alter table BI_Es_Quiu_El.Hechos_Descuentos
+add constraint FK_HECHOS_DESCUNETOS_TIPO_DESCUNETO foreign key(id_tipo_de_descuento) references BI_ES_Quiu_El.Dimension_Tipo_Descuento(descuento_id)
 
 end
 go
-
---Stored procedure para migrar Cliente
-create procedure BI_Es_Quiu_El.Migrar_Dimension_Cliente
-as 
-begin
-	declare @Existingdate date
-	Set @Existingdate=GETDATE()
-
-	insert into BI_Es_Quiu_El.Dimension_Cliente
-	select  CLIENTE_CODIGO,CLIENTE_DNI,CLIENTE_NOMBRE,CLIENTE_APELLIDO,CLIENTE_TELEFONO,
-	CLIENTE_MAIL, CLIENTE_FECHA_NAC,datediff(YEAR,CLIENTE_FECHA_NAC,@Existingdate) AS 'EDAD', CLIENTE_DIRECCION , CLIENTE_CP, CLIENTE_LOCALIDAD
-	from Es_Quiu_El.Cliente
-
-end
-go
-
+	
 
 --Stored procedure para migrar canal de ventas
 create procedure BI_Es_Quiu_El.Migrar_Dimension_Canal_De_Ventas
@@ -248,7 +292,7 @@ END)) from ES_Quiu_El.venta
 end 
 go
 
-
+--Stored procedure para migrar producto
 create procedure BI_Es_Quiu_El.Migrar_Producto
 as
 begin
@@ -286,10 +330,8 @@ create procedure BI_Es_Quiu_El.Migrar_tipo_descuento
 as
 begin
 
-	insert into BI_ES_Quiu_El.Dimension_tipo_descuento(Descuento_Codigo, Descuento_Importe, Descuento_Concepto)
-	select venta_codigo,venta_descuento_importe, venta_descuento_concepto from ES_Quiu_El.venta_descuento
-	union
-	select Descuento_compra_codigo,descuento_compra_valor, null from ES_Quiu_El.Compra_descuento
+	insert into BI_ES_Quiu_El.Dimension_tipo_descuento( Descuento_Concepto)
+	select distinct venta_descuento_concepto from ES_Quiu_El.venta_descuento
 
 end
 go
@@ -303,46 +345,83 @@ begin
 end
 go
 
---Stored procedure para migrar hechos_ventas_y_compras
-create procedure BI_Es_Quiu_El.Migrar_hechos_ventas_y_compras
+--Stored procedure para migrar hechos_ventas
+create procedure BI_Es_Quiu_El.Migrar_hechos_ventas
+as
+begin
+declare @Existingdate date
+	Set @Existingdate=GETDATE()
+	insert into  BI_ES_Quiu_El.Hechos_Ventas
+	select  dp.producto_codigo, v.venta_canal, t.ID_Tiempo,e.ID_Envio, cp.id_producto_categoria, dpp.id_provincia, mp.ID_Medio_De_Pago,
+	BI_ES_Quiu_El.RANGO_EDAD(datediff(YEAR,c.CLIENTE_FECHA_NAC,@Existingdate)) as 'rango etario', SUM(a.venta_producto_cantidad) as 'unidades',  SUM(a.venta_producto_cantidad * a.venta_producto_precio) / SUM(a.venta_producto_cantidad) as 'precio'
+	 from ES_Quiu_El.venta_producto a
+	JOIN ES_Quiu_El.venta v ON  a.venta_codigo = v.venta_codigo
+	JOIN BI_Es_Quiu_El.Dimension_Medio_de_Pago mp ON v.venta_medio_pago = mp.ID_Medio_De_Pago
+	JOIN ES_Quiu_El.producto_por_variante vp ON a.producto_variante_codigo = vp.producto_variante_codigo
+	JOIN ES_Quiu_El.producto p ON vp.producto_codigo = p.producto_codigo
+	JOIN BI_ES_Quiu_El.Dimension_producto dp ON p.producto_codigo = dp.producto_codigo
+	JOIN BI_Es_Quiu_El.Dimension_Categoria_producto cp ON  cp.id_producto_categoria = p.producto_categoria
+	JOIN ES_Quiu_El.cliente c ON v.VENTA_CLIENTE_CODIGO = c.cliente_codigo
+	JOIN BI_ES_Quiu_El.Dimension_Provincia dpp ON dpp.codigo_postal = c.CLIENTE_CP and dpp.localidad = C.cliente_localidad
+	JOIN BI_Es_Quiu_El.Dimension_Tiempo t ON t.fecha = v.venta_fecha
+	JOIN BI_Es_Quiu_El.Dimension_Tipo_De_envio e ON V.venta_envio_codigo = e.id_envio
+	group by dp.producto_codigo, t.ID_Tiempo, cp.id_producto_categoria, mp.ID_Medio_De_Pago,
+	v.venta_canal, dpp.id_provincia, BI_ES_Quiu_El.RANGO_EDAD(datediff(YEAR,c.CLIENTE_FECHA_NAC,@Existingdate)), 
+	e.id_envio
+end
+go
+
+--Stored procedure para migrar hechos_compras
+create procedure BI_Es_Quiu_El.Migrar_hechos_compras
 as
 begin
 
-	insert into  BI_ES_Quiu_El.Hechos_Ventas_y_Compras
-	select distinct dp.Producto_Codigo,ID_canal,ID_TIEMPO,ID_ENVIO,cp.ID_Producto_Categoria,
-	ID_Provincia,ID_Medio_de_pago,td.descuento_id,Clinete_Codigo,null, pv.Venta_Producto_Cantidad,venta_producto_precio from ES_quiu_El.Venta v
-	join ES_Quiu_El.Venta_Producto pv on v.Venta_Codigo = pv.Venta_codigo
-	join BI_ES_Quiu_El.Dimension_Medio_de_Pago on v.VENTA_MEDIO_PAGO = ID_Medio_de_pago
-	join BI_ES_Quiu_El.Dimension_Producto dp on pv.Venta_Producto_Codigo = dp.Producto_Codigo
-	join ES_Quiu_El.Producto p on dp.Producto_Codigo = p.Producto_codigo 
-	join BI_ES_Quiu_El.Dimension_Tipo_De_Envio ON v.VENTA_ENVIO_CODIGO = ID_ENVIO
-	join BI_ES_quiu_El.Dimension_Canal_De_Ventas ON v.VENTA_CANAL = ID_Canal
-	join BI_ES_Quiu_El.Dimension_Tiempo on v.VENTA_FECHA = fecha
-	join BI_ES_Quiu_El.Dimension_Categoria_Producto cp on p.Producto_categoria  = cp.ID_producto_categoria 
-	join BI_ES_Quiu_El.Dimension_Cliente ON v.VENTA_CLIENTE_CODIGO =  Clinete_Codigo
-	join BI_ES_Quiu_El.Dimension_Provincia on Cliente_Localidad = localidad and Cliente_CP = codigo_postal 
-	left join Es_Quiu_El.Venta_Descuento vd on v.Venta_codigo = vd.venta_Codigo and id_medio_de_pago = vd.venta_descuento_medio_de_pago_id
-	left join BI_Es_Quiu_El.Dimension_Tipo_Descuento td on td.Descuento_Codigo = vd.Venta_Codigo
-	union 
-	select distinct dp.Producto_Codigo,null,ID_TIEMPO,null,cp.ID_Producto_Categoria,ID_Provincia,
-    ID_Medio_de_pago,td.descuento_id,NULL, Proveedor_cuit, pc.Compra_Producto_Cantidad, pc.Compra_Producto_Precio from ES_quiu_El.Compra c
-	join ES_Quiu_El.compra_Producto pc on c.compra_Numero = pc.compra_numero
-	join BI_ES_Quiu_El.Dimension_Producto dp on pc.Compra_Producto_Codigo = dp.Producto_Codigo
-	join ES_Quiu_El.Producto p on dp.Producto_Codigo = p.Producto_codigo 
-	join BI_ES_Quiu_El.Dimension_Tiempo on c.COMPRA_FECHA = fecha
-	join BI_ES_Quiu_El.Dimension_Categoria_Producto cp on p.Producto_categoria  = cp.ID_producto_categoria
-	join BI_ES_Quiu_El.Dimension_Proveedor ON C.COMPRA_PROVEEDOR =  proveedor_cuit
-	join BI_ES_Quiu_El.Dimension_Provincia on proveedor_Localidad = localidad and proveedor_CP = codigo_postal
-	join BI_ES_Quiu_El.Dimension_Medio_de_Pago on c.COMPRA_MEDIO_PAGO = ID_Medio_de_pago 
-	left join Es_Quiu_El.Compra_Descuento cd on c.Compra_descuento_codigo = cd.Descuento_Compra_Codigo 
-	left join BI_Es_Quiu_El.Dimension_Tipo_Descuento td on td.Descuento_Codigo = cd.descuento_compra_Codigo
+	insert into  BI_ES_Quiu_El.Hechos_Compras
+	select  dp.producto_codigo, t.ID_Tiempo, cp.id_producto_categoria, dpp.id_provincia, mp.ID_Medio_De_Pago,
+	pro.proveedor_cuit, SUM(a.compra_producto_cantidad) as 'unidades',  SUM(a.compra_producto_cantidad * a.compra_producto_precio) / SUM(a.compra_producto_cantidad) as 'precio'
+	 from ES_Quiu_El.compra_producto a
+	JOIN ES_Quiu_El.compra c ON  a.compra_numero = c.compra_numero
+	JOIN BI_Es_Quiu_El.Dimension_Medio_de_Pago mp ON c.compra_medio_pago = mp.ID_Medio_De_Pago
+	JOIN ES_Quiu_El.producto_por_variante vp ON a.producto_variante_codigo = vp.producto_variante_codigo
+	JOIN ES_Quiu_El.producto p ON vp.producto_codigo = p.producto_codigo
+	JOIN BI_ES_Quiu_El.Dimension_producto dp ON p.producto_codigo = dp.producto_codigo
+	JOIN BI_Es_Quiu_El.Dimension_Categoria_producto cp ON  cp.id_producto_categoria = p.producto_categoria
+	JOIN BI_ES_Quiu_El.Dimension_proveedor pro ON c.COMPRA_PROVEEDOR = pro.proveedor_cuit
+	JOIN BI_ES_Quiu_El.Dimension_Provincia dpp ON dpp.codigo_postal = pro.proveedor_CP and dpp.localidad = pro.proveedor_localidad
+	JOIN BI_Es_Quiu_El.Dimension_Tiempo t ON t.fecha = C.Compra_fecha
+	group by  dp.producto_codigo, t.ID_Tiempo, cp.id_producto_categoria, dpp.id_provincia, mp.ID_Medio_De_Pago,
+	pro.proveedor_cuit
+end
+go
 
+--Stored procedure para migrar hechos_descuentos
+create procedure BI_Es_Quiu_El.Migrar_hechos_descuentos
+as
+begin
+	insert into  BI_ES_Quiu_El.Hechos_Descuentos
+	select  t.id_tiempo,p.id_medio_de_pago, cv.id_canal, td.descuento_id, d.venta_descuento_importe from ES_Quiu_El.venta_descuento d
+	join ES_Quiu_El.venta v ON  d.venta_codigo = v.venta_codigo
+	join BI_ES_Quiu_El.Dimension_Canal_de_ventas cv ON v.venta_canal = cv.id_canal
+	join BI_Es_Quiu_El.Dimension_Tiempo t ON V.venta_fecha = t.fecha
+	join BI_Es_Quiu_El.Dimension_Medio_de_Pago p ON  v.venta_medio_pago = p.ID_Medio_de_pago
+	join BI_Es_Quiu_El.Dimension_Tipo_Descuento td ON d.venta_descuento_concepto = td.descuento_concepto
 	
+end 
+go
+
+--Stored procedure para migrar Dimension_Edad
+create procedure BI_ES_Quiu_El.Migrar_Dimension_edad
+as
+begin
+	declare @Existingdate date
+	Set @Existingdate=GETDATE()
+	insert into BI_ES_Quiu_El.Dimension_edad
+	select BI_ES_Quiu_El.RANGO_EDAD(datediff(YEAR,c.Cliente_fecha_nac,@Existingdate)), count(c.Cliente_fecha_nac) from Es_Quiu_El.Cliente c
+	group by BI_ES_Quiu_El.RANGO_EDAD(datediff(YEAR,c.Cliente_fecha_nac,@Existingdate))
 end
 go
 
 --Crea las tablas 
-
 begin
 exec BI_Es_Quiu_El.Crear_Tablas
 --Migra los Canales de ventas
@@ -362,186 +441,162 @@ exec BI_Es_Quiu_El.Migrar_tipo_de_envio
 --Migra los tipos descuentos
 exec BI_Es_Quiu_El.Migrar_tipo_descuento
 --Migrar los clientes 
-exec BI_ES_Quiu_El.Migrar_Dimension_Cliente
+exec BI_ES_Quiu_El.Migrar_Dimension_edad
 --Migrar los Proveedores 
 exec BI_ES_Quiu_El.Migrar_Dimension_Proveedor 
---Migrar hechos_ventas_y_compras
-exec BI_Es_Quiu_El.Migrar_hechos_ventas_y_compras
+--Migrar hechos_ventas
+exec BI_Es_Quiu_El.Migrar_hechos_ventas
+--Migrar hechos_ventas
+exec BI_Es_Quiu_El.Migrar_hechos_compras
+--Migrar hechos_ventas
+exec BI_Es_Quiu_El.Migrar_hechos_descuentos
 end
 go 
 
--- Crear vista de las ganancias mensuales de cada canal de venta
+-- Crear vista de las ganancias mensuales de cada canal de venta 
 CREATE  VIEW   BI_ES_Quiu_El.ganancias_mensuales_X_Canales
 AS  
-	SELECT vc.Canal_id, dt.mes, dt.anio , sum(vc.precio)-(select sum(vc1.precio) 
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras  vc1
-	join BI_ES_Quiu_El.dimension_Tiempo dt1 on vc1.ID_TIEMPO = dt1.ID_TIEMPO
-	where cliente_codigo is null and dt1.mes = dt.mes and dt1.anio = dt.anio
-	group by dt1.mes, dt1.anio) ganancia
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras  vc
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	where proveedor_cuit is null
-	group by canal_id, mes, anio
+	SELECT v.Canal_id, dt.mes, dt.anio , sum(v.precio)-(select sum(c.precio) 
+	from BI_ES_Quiu_El.Hechos_Compras  c
+	join BI_ES_Quiu_El.dimension_Tiempo dt1 on c.ID_TIEMPO = dt1.ID_TIEMPO
+	where dt1.mes = dt.mes and dt1.anio = dt.anio
+	group by dt1.mes, dt1.anio) - sum(cv.canal_costo_decimal ) ganancia
+	from BI_ES_Quiu_El.Hechos_Ventas  v
+	join BI_ES_Quiu_El.dimension_Canal_de_ventas cv on v.canal_id = cv.id_canal
+	join BI_ES_Quiu_El.dimension_Tiempo dt on v.ID_TIEMPO = dt.ID_TIEMPO
+	group by v.canal_id, dt.mes, dt.anio
 
 go
 
--- Crear vista de Los 5 productos con mayor rentabilidad anual, con sus respectivos % 
+-- Crear vista de Los 5 productos con mayor rentabilidad anual
 CREATE  VIEW   BI_ES_Quiu_El.top5_productos_mas_rentables_anual
 AS 
 
-   select top 5 p.Producto_Codigo,p.Producto_Nombre, dt.anio,sum(vc.precio)-(select top 5 sum(vc1.precio) 
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras  vc1
-	join BI_ES_Quiu_El.dimension_Tiempo dt1 on vc1.ID_TIEMPO = dt1.ID_TIEMPO
-	where cliente_codigo is null and  dt1.anio = dt.anio
-	group by  dt1.anio)/(select sum(vc2.precio) from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc2
-	 join BI_ES_Quiu_El.dimension_Tiempo dt2 on vc2.ID_TIEMPO = dt2.ID_TIEMPO 
-	 where cliente_codigo is null and  dt2.anio = dt.anio) rentabilidad_Anual
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	join BI_ES_Quiu_El.dimension_Producto p on vc.Producto_Codigo = p.Producto_Codigo
-	where proveedor_cuit is null and dt.anio = 2022
+
+   select top 5 p.Producto_Codigo,p.Producto_Nombre, dt.anio,(sum(v.precio)-(select  sum(c.precio) 
+   from BI_ES_Quiu_El.Hechos_Compras  c join BI_ES_Quiu_El.dimension_Tiempo dt1 on c.ID_TIEMPO = dt1.ID_TIEMPO
+   where p.Producto_Codigo = c.producto_codigo and dt1.anio = dt.anio
+   group by dt1.anio)) /(select sum(v1.precio) from BI_ES_Quiu_El.Hechos_Ventas v1
+	 join BI_ES_Quiu_El.dimension_Tiempo dt2 on v1.ID_TIEMPO = dt2.ID_TIEMPO and dt2.anio = 2022) rentabilidad_anual
+	from BI_ES_Quiu_El.Hechos_Ventas v
+	join BI_ES_Quiu_El.dimension_Tiempo dt on v.ID_TIEMPO = dt.ID_TIEMPO
+	join BI_ES_Quiu_El.dimension_Producto p on v.Producto_Codigo = p.Producto_Codigo
+	where dt.anio = 2022
 	group by p.Producto_Codigo,p.Producto_Nombre, dt.anio
 	union
-	select top 5 p.Producto_Codigo,p.Producto_Nombre, dt.anio,sum(vc.precio)-(select top 5 sum(vc1.precio) 
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras  vc1
-	join BI_ES_Quiu_El.dimension_Tiempo dt1 on vc1.ID_TIEMPO = dt1.ID_TIEMPO
-	where cliente_codigo is null and  dt1.anio = dt.anio
-	group by  dt1.anio)/(select sum(vc2.precio) from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc2
-	 join BI_ES_Quiu_El.dimension_Tiempo dt2 on vc2.ID_TIEMPO = dt2.ID_TIEMPO 
-	 where cliente_codigo is null and  dt2.anio = dt.anio) rentabilidad_Anual
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	join BI_ES_Quiu_El.dimension_Producto p on vc.Producto_Codigo = p.Producto_Codigo
-	where proveedor_cuit is null and dt.anio = 2023
+	 select top 5 p.Producto_Codigo,p.Producto_Nombre, dt.anio,(sum(v.precio)-(select  sum(c.precio) 
+   from BI_ES_Quiu_El.Hechos_Compras  c join BI_ES_Quiu_El.dimension_Tiempo dt1 on c.ID_TIEMPO = dt1.ID_TIEMPO
+   where p.Producto_Codigo = c.producto_codigo and dt1.anio = dt.anio
+   group by dt1.anio)) /(select sum(v1.precio) from BI_ES_Quiu_El.Hechos_Ventas v1
+	 join BI_ES_Quiu_El.dimension_Tiempo dt2 on v1.ID_TIEMPO = dt2.ID_TIEMPO and dt2.anio = 2023) rentabilidad_anual
+	from BI_ES_Quiu_El.Hechos_Ventas v
+	join BI_ES_Quiu_El.dimension_Tiempo dt on v.ID_TIEMPO = dt.ID_TIEMPO
+	join BI_ES_Quiu_El.dimension_Producto p on v.Producto_Codigo = p.Producto_Codigo
+	where dt.anio = 2023
 	group by p.Producto_Codigo,p.Producto_Nombre, dt.anio
-	order by 4 desc
+	order by 3,4 desc
 
 go
 
---crear Vista para Total de Ingresos por cada medio de pago por mes
-CREATE VIEW   BI_ES_Quiu_El.ingresos_mensual_por_pago
-AS 
-	select  vc.id_medio_de_pago, dt.mes, dt.anio, sum(vc.precio-isnull(mp.ID_Medio_de_pago,0)+isnull(td.Descuento_Importe,0)) ingresos from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	left join BI_ES_Quiu_El.dimension_Medio_De_Pago mp on vc.id_medio_de_pago = mp.id_MEDIO_de_PAGO
-	left join BI_ES_Quiu_El.dimension_Tipo_Descuento td on vc.id_descuento = td.descuento_id and mp.medio_de_pago = td.Descuento_Concepto
-	group by vc.id_medio_de_pago,dt.mes, dt.anio
-
-go
---crear Vista Importe total en descuentos aplicados según su tipo de descuento, por canal de venta, por mes.
-CREATE   VIEW   BI_ES_Quiu_El.ingreso_tipo_desc_mensual_X_canal
-AS 
-	select  td.Descuento_concepto, vc.Canal_id, dt.mes,dt.anio, sum(Descuento_Importe) importe from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	join BI_ES_Quiu_El.dimension_Tipo_Descuento td on vc.id_descuento = td.descuento_id 
-	where td.Descuento_Concepto is not null
-	group by  td.Descuento_concepto, vc.Canal_id, dt.mes,dt.anio 
-
-go
---crear Vista Porcentaje de envíos realizados a cada Provincia por mes.
-CREATE  VIEW   BI_ES_Quiu_El.porcentaje_envios_mensuales_cada_prov
-AS 
-	select p.provincia, dt.mes, dt.anio ,count(vc.id_envio)/(select  count(vc1.id_envio) from  BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc1
-	join BI_ES_Quiu_El.dimension_Tiempo dt1 on vc1.ID_TIEMPO = dt1.ID_TIEMPO
-	where dt1.mes = dt.mes  and  dt1.anio= dt.anio
-	) porcentaje
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.Dimension_Provincia  p on vc.Id_Provincia = p.Id_Provincia
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	group by provincia, dt.mes,dt.anio
-
-go
---crear vista Valor promedio de envío por Provincia por Medio De Envío anual. 
-CREATE    VIEW   BI_ES_Quiu_El.Valor_promedio_envio_anual_X_Provincia
-AS 
-	select p.provincia, dt.anio ,avg(te.envio_precio) promedio
-	from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.Dimension_Provincia  p on vc.Id_Provincia = p.Id_Provincia
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	join BI_ES_Quiu_El.dimension_Tipo_de_envio te on vc.ID_Envio = te.ID_Envio
-	group by provincia,dt.anio
-go
---crear vista Aumento promedio de precios de cada proveedor anual.
-CREATE VIEW   BI_ES_Quiu_El.Aumento_Promedio_anual_de_precios_proveedores
-AS 
-	select   vc.proveedor_cuit, dt.anio,((select top 1  vc1.precio from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc1
-	join BI_ES_Quiu_El.dimension_Tiempo dt1 on vc1.ID_TIEMPO = dt1.ID_TIEMPO
-	where vc1.proveedor_cuit is not null and dt1.anio = dt.anio and vc1.proveedor_cuit = vc.proveedor_cuit
-	group by vc1.producto_codigo,vc1.precio
-	order by 1 desc)-(select top 1  vc2.precio from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc2
-	join BI_ES_Quiu_El.dimension_Tiempo dt2 on vc2.ID_TIEMPO = dt2.ID_TIEMPO
-	where vc2.proveedor_cuit is not null and dt2.anio = dt.anio and vc2.proveedor_cuit = vc.proveedor_cuit
-	group by vc2.proveedor_cuit, dt2.anio,vc2.precio
-	order by 1 ))/(select top 1  vc2.precio from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc2
-	join BI_ES_Quiu_El.dimension_Tiempo dt2 on vc2.ID_TIEMPO = dt2.ID_TIEMPO
-	where vc2.proveedor_cuit is not null and dt2.anio = dt.anio and vc2.proveedor_cuit = vc.proveedor_cuit
-	group by vc2.proveedor_cuit, dt2.anio,vc2.precio
-	order by 1 ) aumento_promedio from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	where proveedor_cuit is not null
-	group by proveedor_cuit, dt.anio
-
-go
-
-
--- crear vista de Los 3 productos con mayor cantidad de reposición(compra) por mes.
-CREATE   VIEW   BI_ES_Quiu_El.top_3_productos_mayor_reposicion
-AS 
-	select  producto_codigo, dt.mes, dt.anio, sum(unidades) cantidad_repuesta from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	where proveedor_cuit is not null
-	group by producto_codigo, dt.mes,dt.anio
-	
-	
-go
-
--- FUNCION QUE DEVUELVE RANGO ETARIO 
-CREATE FUNCTION ES_Quiu_El.RANGO_EDAD(@edad int) 
-RETURNS nvarchar(255)
-AS
-BEGIN
-	DECLARE @rango nvarchar(255);
-	DECLARE @hoy DATE;
-	SET @hoy = GETDATE();
-
-	IF @edad < 25
-		SET @rango = '< 25 años'
-	ELSE IF @edad BETWEEN 25 AND 35
-		SET @rango = '25 - 35 años'
-	ELSE IF @edad BETWEEN 36 AND 55
-		SET @rango  = '35 - 55 años'
-	ELSE
-		SET @rango = '> 55 años'
-
-
-	RETURN @rango;
-
-END
-GO
-
--- crear vista para Las 5 categorías de productos más vendidos por rango etario de clientes por mes.
---(Correguir como hacer para ordenar de mayor a menor segun los precios)
+-- crear vista para Las 5 categorÃ­as de productos mÃ¡s vendidos por rango etario de clientes por mes.
 
 CREATE   VIEW   BI_ES_Quiu_El.top_5_Categorias_mensuales_mas_vendidas_por_rango_etario
 AS 
-	select vc.ID_Producto_categoria,cp.producto_categoria, dt.mes,dt.anio,ES_Quiu_El.RANGO_EDAD(c.cliente_edad) rango_etario, 
-	sum(vc.precio) precio from BI_ES_Quiu_El.Hechos_Ventas_y_Compras vc 
-	join BI_ES_Quiu_El.dimension_Tiempo dt on vc.ID_TIEMPO = dt.ID_TIEMPO
-	join BI_ES_Quiu_El.dimension_Cliente c on vc.Cliente_Codigo = c.CLINETE_CODIGO
-	join BI_ES_Quiu_El.dimension_Categoria_Producto cp on vc.Id_Producto_Categoria = cp.ID_Producto_Categoria
-	where proveedor_cuit is null
-	group by vc.ID_Producto_categoria, dt.mes,ES_Quiu_El.RANGO_EDAD(c.cliente_edad),producto_categoria,dt.anio
-	
+	select  dt.anio,dt.mes,v.Rango_Etario,cp.producto_categoria, 
+	sum(v.precio) cantidad from BI_ES_Quiu_El.Hechos_Ventas v 
+	join BI_ES_Quiu_El.dimension_Tiempo dt on v.ID_TIEMPO = dt.ID_TIEMPO
+	join BI_ES_Quiu_El.dimension_Categoria_Producto cp on v.Id_Producto_Categoria = cp.ID_Producto_Categoria
+	WHERE v.id_producto_categoria IN (SELECT TOP 5 v1.id_producto_categoria
+											 FROM BI_ES_Quiu_El.Hechos_Ventas v1
+											 WHERE v1.Rango_Etario = v.Rango_Etario and v.id_tiempo = v1.id_tiempo
+											 GROUP BY v1.id_producto_categoria
+											 ORDER BY SUM(v1.unidades) DESC)
+	group by dt.anio,dt.mes,v.Rango_Etario, cp.Producto_categoria
 go
 
-/*
-select * from BI_ES_Quiu_El.ganancias_mensuales_X_Canales
-select * from BI_ES_Quiu_El.top5_productos_mas_rentables_anual 
-select * from BI_ES_Quiu_El.ingresos_mensual_por_pago
-select * from BI_ES_Quiu_El.ingreso_tipo_desc_mensual_X_canal
-select * from BI_ES_Quiu_El.porcentaje_envios_mensuales_cada_prov /*correguir division*/
-select * from  BI_ES_Quiu_El.Valor_promedio_envio_anual_X_Provincia
-select * from BI_ES_Quiu_El.Aumento_Promedio_anual_de_precios_proveedores
-select * from BI_ES_Quiu_El.top_3_productos_mayor_reposicion /* correguir*/
-select * from BI_ES_Quiu_El.top_5_Categorias_mensuales_mas_vendidas_por_rango_etario
-*/
+
+--crear Vista para Total de Ingresos por cada medio de pago por mes 
+CREATE VIEW   BI_ES_Quiu_El.ingresos_mensual_por_pago
+AS 
+
+	select  v.id_medio_de_pago, dt.mes, dt.anio,SUM((v.precio*v.unidades)-isnull(mp.ID_Medio_de_pago,0))-
+	(select SUM(D.descuento) from Bi_Es_Quiu_El.Hechos_Descuentos D 
+	join BI_ES_Quiu_El.dimension_Tiempo dt1 on D.ID_TIEMPO = dt1.ID_TIEMPO
+	where dt.mes = dt1.mes and dt.anio = dt.anio and v.id_medio_de_pago = D.id_medio_de_pago) 
+	ingresos from BI_ES_Quiu_El.Hechos_Ventas v
+	join BI_ES_Quiu_El.dimension_Tiempo dt on v.ID_TIEMPO = dt.ID_TIEMPO
+	left join BI_ES_Quiu_El.dimension_Medio_De_Pago mp on v.id_medio_de_pago = mp.id_MEDIO_de_PAGO
+	group by v.id_medio_de_pago,dt.mes, dt.anio
+
+go
+--crear Vista Importe total en descuentos aplicados segÃºn su tipo de descuento, por canal de venta, por mes. 
+CREATE   VIEW   BI_ES_Quiu_El.ingreso_tipo_desc_mensual_X_canal
+AS 
+	select  td.Descuento_concepto, d.id_canal_de_venta, dt.mes,dt.anio, sum(d.Descuento) importe_total from BI_ES_Quiu_El.hechos_descuentos  d
+	join BI_ES_Quiu_El.dimension_Tiempo dt on d.ID_TIEMPO = dt.ID_TIEMPO
+	join BI_Es_Quiu_El.Dimension_Tipo_Descuento td on td.Descuento_id = d.id_tipo_de_descuento
+	group by  td.Descuento_concepto, d.id_canal_de_venta, dt.mes,dt.anio 
+
+go
+
+--crear Vista Porcentaje de envÃ­os realizados a cada Provincia por mes. 
+CREATE  VIEW   BI_ES_Quiu_El.porcentaje_envios_mensuales_cada_prov
+AS 
+
+
+	select  p.provincia, dt.mes, dt.anio,(count(v.id_envio)+0.00)/(select  count(v1.id_envio) from  BI_ES_Quiu_El.Hechos_Ventas v1
+	join BI_ES_Quiu_El.dimension_Tiempo dt1 on v1.ID_TIEMPO = dt1.ID_TIEMPO
+	where dt1.mes = dt.mes  and  dt1.anio= dt.anio
+	) porcentaje from BI_Es_Quiu_El.Hechos_Ventas v
+	join BI_ES_Quiu_El.Dimension_Provincia  p on v.Id_Provincia = p.Id_Provincia
+	join BI_ES_Quiu_El.dimension_Tiempo dt on v.ID_TIEMPO = dt.ID_TIEMPO
+	group by  dt.mes,dt.anio,p.provincia
+
+go
+
+--crear vista Valor promedio de envÃ­o por Provincia por Medio De EnvÃ­o anual.        
+CREATE    VIEW  BI_ES_Quiu_El.Valor_promedio_envio_anual_X_Provincia
+AS 
+	select p.provincia, dt.anio ,te.envio_medio, avg(te.envio_precio) promedio
+	from BI_ES_Quiu_El.Hechos_Ventas v
+	join BI_ES_Quiu_El.Dimension_Provincia  p on v.Id_Provincia = p.Id_Provincia
+	join BI_ES_Quiu_El.dimension_Tiempo dt on v.ID_TIEMPO = dt.ID_TIEMPO
+	join BI_ES_Quiu_El.dimension_Tipo_de_envio te on v.ID_Envio = te.ID_Envio
+	group by p.provincia,dt.anio,te.envio_medio
+go
+
+
+--crear vista Aumento promedio de precios de cada proveedor anual. 
+CREATE VIEW   BI_ES_Quiu_El.Aumento_Promedio_anual_de_precios_proveedores
+AS 
+	select   c.proveedor_cuit, dt.anio, ((select top 1  c1.precio from BI_ES_Quiu_El.Hechos_Compras c1
+	join BI_ES_Quiu_El.dimension_Tiempo dt1 on c1.ID_TIEMPO = dt1.ID_TIEMPO
+	where c1.proveedor_cuit is not null and dt1.anio = dt.anio and c1.proveedor_cuit = c.proveedor_cuit
+	group by c1.producto_codigo,c1.precio
+	order by 1 desc)-(select top 1  c2.precio from BI_ES_Quiu_El.Hechos_Compras c2
+	join BI_ES_Quiu_El.dimension_Tiempo dt2 on c2.ID_TIEMPO = dt2.ID_TIEMPO
+	where c2.proveedor_cuit is not null and dt2.anio = dt.anio and c2.proveedor_cuit = c.proveedor_cuit
+	group by c2.proveedor_cuit, dt2.anio,c2.precio
+	order by 1 ))/(select top 1  c3.precio from BI_ES_Quiu_El.Hechos_Compras c3
+	join BI_ES_Quiu_El.dimension_Tiempo dt3 on c3.ID_TIEMPO = dt3.ID_TIEMPO
+	where c3.proveedor_cuit is not null and dt3.anio = dt.anio and c3.proveedor_cuit = c.proveedor_cuit
+	group by c3.proveedor_cuit, dt3.anio,c3.precio
+	order by 1 ) Aumento_promedio from BI_ES_Quiu_El.Hechos_Compras c
+	join BI_ES_Quiu_El.dimension_Tiempo dt on c.ID_TIEMPO = dt.ID_TIEMPO
+	group by c.proveedor_cuit, dt.anio
+go
+
+
+-- crear vista de Los 3 productos con mayor cantidad de reposiciÃ³n(compra) por mes. %Contultar %si son solo 3 funciona
+CREATE   VIEW   BI_ES_Quiu_El.top_3_productos_mayor_reposicion_mes
+AS 
+	select  c.producto_codigo, dt.mes, dt.anio,sum(unidades) cantidad_reposicion from BI_ES_Quiu_El.Hechos_Compras c
+	join BI_ES_Quiu_El.dimension_Tiempo dt on c.ID_TIEMPO = dt.ID_TIEMPO
+	where c.producto_codigo in (select top 3 c1.producto_codigo from BI_ES_Quiu_El.Hechos_Compras c1
+	where c1.id_tiempo=c.id_tiempo
+	group by c1.producto_codigo, c1.id_tiempo
+	order by sum(c1.unidades)desc)
+	group by c.producto_codigo, dt.mes,dt.anio
+
+go
+
